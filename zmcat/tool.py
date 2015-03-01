@@ -65,7 +65,7 @@ def pull(uri):
         print socket.recv()
 
 
-if __name__ == "__main__":
+def main():
     types = {
         "pub": pub,
         "sub": sub,
@@ -87,3 +87,7 @@ if __name__ == "__main__":
         types[args.type](args.uri)
     except (EOFError, KeyboardInterrupt):
         pass
+
+
+if __name__ == "__main__":
+    main()
