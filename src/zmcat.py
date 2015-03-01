@@ -85,5 +85,5 @@ if __name__ == "__main__":
     try:
         # Call the relevant function
         types[args.type](args.uri)
-    except EOFError:
+    except (EOFError, KeyboardInterrupt):
         pass
