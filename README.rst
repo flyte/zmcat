@@ -1,3 +1,6 @@
+.. image:: https://travis-ci.org/flyte/zmcat.svg?branch=develop
+    :target: https://travis-ci.org/flyte/zmcat
+
 ZMCat
 =====
 
