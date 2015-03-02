@@ -5,11 +5,11 @@ from time import sleep
 # Allow sockets to connect together before sending data
 COURTESY_DELAY = 0.1
 
+
 class ZMCat:
 
     def __init__(self, key="ZMCAT"):
         self.key = key
-
 
     def _get_socket(self, typ):
         """
@@ -18,7 +18,6 @@ class ZMCat:
         context = zmq.Context()
         socket = context.socket(typ)
         return socket
-
 
     def _get_bound_socket(self, typ, uri):
         """
@@ -29,7 +28,6 @@ class ZMCat:
         sleep(COURTESY_DELAY)
         return socket
 
-
     def _get_connected_socket(self, typ, uri):
         """
         Create a ZeroMQ socket of type typ and connect it to uri.
@@ -39,7 +37,6 @@ class ZMCat:
         sleep(COURTESY_DELAY)
         return socket
 
-
     def pub(self, uri):
         """
         Publish stdin on a ZeroMQ socket bound to uri.
@@ -47,7 +44,6 @@ class ZMCat:
         socket = self._get_bound_socket(zmq.PUB, uri)
         while True:
             socket.send_unicode(unicode("%s%s" % (self.key, raw_input())))
-
 
     def sub(self, uri):
         """
@@ -59,7 +55,6 @@ class ZMCat:
         while True:
             print socket.recv()
 
-
     def push(self, uri):
         """
         Push stdin to a ZeroMQ PULL socket at uri.
@@ -67,7 +62,6 @@ class ZMCat:
         socket = self._get_connected_socket(zmq.PUSH, uri)
         while True:
             socket.send_unicode(unicode(raw_input()))
-
 
     def pull(self, uri):
         """
