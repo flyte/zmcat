@@ -112,6 +112,7 @@ class ZMCatToolTestCase(TestCase):
         sub_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
         msg = u"Who is your daddy and what does he do?"
 
+        # Mock raw_input to return without standard input
         with mock.patch("__builtin__.raw_input", side_effect=[msg]):
             zmcat.input = raw_input
             try:
@@ -129,6 +130,10 @@ class ZMCatToolTestCase(TestCase):
         output_file = "/tmp/test-sub.output"
 
         def save_and_raise(msg):
+            """
+            Save the msg to a file and raise an exception to get out of the
+            while True loop in sub().
+            """
             print msg
             with open(output_file, "w") as f:
                 f.write(msg)
@@ -139,6 +144,7 @@ class ZMCatToolTestCase(TestCase):
         msg = u"Stop whining!"
 
         try:
+            # Mock the reception of a packet from ZMQ
             with mock.patch("zmq.sugar.socket.Socket.recv", return_value=msg):
                 try:
                     zmcat.sub(uri)
