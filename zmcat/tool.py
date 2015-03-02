@@ -1,5 +1,9 @@
 import zmq
 import argparse
+from time import sleep
+
+# Allow sockets to connect together before sending data
+COURTESY_DELAY = 0.1
 
 class ZMCat:
 
@@ -22,6 +26,7 @@ class ZMCat:
         """
         socket = self._get_socket(typ)
         socket.bind(uri)
+        sleep(COURTESY_DELAY)
         return socket
 
 
@@ -31,6 +36,7 @@ class ZMCat:
         """
         socket = self._get_socket(typ)
         socket.connect(uri)
+        sleep(COURTESY_DELAY)
         return socket
 
 

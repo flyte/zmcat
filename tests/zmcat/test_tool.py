@@ -1,6 +1,7 @@
 import logging
 import socket
 import zmq
+import mock
 from time import sleep
 from unittest import TestCase
 from zmcat import ZMCat
@@ -33,7 +34,7 @@ def get_random_bound_zmq_socket(typ):
     while not zmq_sock and port <= 65536:
         try:
             zmq_sock = zmcat._get_bound_socket(
-                zmq.PUB, "tcp://127.0.0.1:%d" % port)
+                typ, "tcp://127.0.0.1:%d" % port)
             log.debug("Socket bound to port %d" % port)
         except zmq.ZMQError as e:
             if e.errno == zmq.EADDRINUSE:
@@ -61,7 +62,6 @@ class ZMCatToolTestCase(TestCase):
         """
         _get_bound_socket() should provide a ZeroMQ socket bound to interface.
         """
-
         zmq_sock, port = get_random_bound_zmq_socket(zmq.PUB)
         self.assertTrue(zmq_sock, "Socket must be able to bind to a port")
 
@@ -77,13 +77,13 @@ class ZMCatToolTestCase(TestCase):
         _get_connected_socket() should provide a connected ZeroMQ socket.
         """
         zmcat = ZMCat()
-        bound_sock, port = get_random_bound_zmq_socket(zmq.PUB)
-        connected_sock = zmcat._get_connected_socket(
-            zmq.SUB, "tcp://127.0.0.1:%d" % port)
+        uri = "ipc:///tmp/test-get-connected-socket"
+        bound_sock = zmcat._get_bound_socket(zmq.PUB, uri)
+        connected_sock = zmcat._get_connected_socket(zmq.SUB, uri)
 
         msg = u"Remember, Sully, when I promised to kill you last? I lied."
         prefix = u"ARNIE"
-        msg = "%s%s" % (prefix, msg)
+        msg = u"%s%s" % (prefix, msg)
         try:
             connected_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
             sleep(0.1)
@@ -95,3 +95,24 @@ class ZMCatToolTestCase(TestCase):
         finally:
             bound_sock.close()
             connected_sock.close()
+
+    def test_pub(self):
+        """
+        pub() should set up a PUB socket and send stdin through it.
+        """
+        prefix = u"ARNIE"
+        zmcat = ZMCat(key=prefix)
+        uri = "ipc:///tmp/test-pub"
+        sub_sock = zmcat._get_connected_socket(zmq.SUB, uri)
+        sub_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
+        msg = u"Who is your daddy and what does he do?"
+
+        config = {"side_effect": [msg]}
+        with mock.patch("__builtin__.raw_input", **config):
+            try:
+                zmcat.pub(uri)
+            except StopIteration:
+                pass
+
+        sleep(0.1)
+        self.assertEqual(sub_sock.recv(zmq.NOBLOCK), u"%s%s" % (prefix, msg))
