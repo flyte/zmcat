@@ -1,0 +1,97 @@
+import logging
+import socket
+import zmq
+from time import sleep
+from unittest import TestCase
+from zmcat import ZMCat
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+
+def port_open(port):
+    """
+    Check to see if a port is open by connecting a vanilla socket to it.
+    """
+    log.debug("Creating vanilla socket")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    log.debug("Connecting vanilla socket to port %d" % port)
+    result = sock.connect_ex(("127.0.0.1", port))
+    
+    log.debug("Result (0 connected, >0 did not): %d" % result)
+    sock.close()
+    return result == 0
+
+
+def get_random_bound_zmq_socket(typ):
+    """
+    Find a high port not in use and bind to it.
+    """
+    zmcat = ZMCat()
+    zmq_sock = None
+    port = 49152
+    while not zmq_sock and port <= 65536:
+        try:
+            zmq_sock = zmcat._get_bound_socket(
+                zmq.PUB, "tcp://127.0.0.1:%d" % port)
+            log.debug("Socket bound to port %d" % port)
+        except zmq.ZMQError as e:
+            if e.errno == zmq.EADDRINUSE:
+                port += 1
+            else:
+                zmq_sock.close()
+                raise
+    return zmq_sock, port
+
+
+class ZMCatToolTestCase(TestCase):
+
+    def test_get_socket(self):
+        """
+        _get_socket() should provide a ZeroMQ socket of the desired type.
+        """
+        zmcat = ZMCat()
+        for typ in (zmq.PUSH, zmq.PULL, zmq.PUB, zmq.SUB):
+            socket = zmcat._get_socket(typ)
+            self.assertEqual(socket.TYPE, typ,
+                "Socket type should be what we asked for")
+
+
+    def test_get_bound_socket(self):
+        """
+        _get_bound_socket() should provide a ZeroMQ socket bound to interface.
+        """
+
+        zmq_sock, port = get_random_bound_zmq_socket(zmq.PUB)
+        self.assertTrue(zmq_sock, "Socket must be able to bind to a port")
+
+        try:
+            self.assertTrue(port_open(port),
+                "Port should be open and accepting conections")
+        finally:
+            zmq_sock.close()
+
+
+    def test_get_connected_socket(self):
+        """
+        _get_connected_socket() should provide a connected ZeroMQ socket.
+        """
+        zmcat = ZMCat()
+        bound_sock, port = get_random_bound_zmq_socket(zmq.PUB)
+        connected_sock = zmcat._get_connected_socket(
+            zmq.SUB, "tcp://127.0.0.1:%d" % port)
+
+        msg = u"Remember, Sully, when I promised to kill you last? I lied."
+        prefix = u"ARNIE"
+        msg = "%s%s" % (prefix, msg)
+        try:
+            connected_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
+            sleep(0.1)
+            bound_sock.send_unicode(msg)
+            sleep(0.1)
+            self.assertEqual(
+                connected_sock.recv(zmq.NOBLOCK),
+                msg)
+        finally:
+            bound_sock.close()
+            connected_sock.close()
