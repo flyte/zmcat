@@ -9,6 +9,7 @@ from zmcat import ZMCat
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
+
 def port_open(port):
     """
     Check to see if a port is open by connecting a vanilla socket to it.
@@ -18,7 +19,7 @@ def port_open(port):
 
     log.debug("Connecting vanilla socket to port %d" % port)
     result = sock.connect_ex(("127.0.0.1", port))
-    
+
     log.debug("Result (0 connected, >0 did not): %d" % result)
     sock.close()
     return result == 0
@@ -54,9 +55,8 @@ class ZMCatToolTestCase(TestCase):
         zmcat = ZMCat()
         for typ in (zmq.PUSH, zmq.PULL, zmq.PUB, zmq.SUB):
             socket = zmcat._get_socket(typ)
-            self.assertEqual(socket.TYPE, typ,
-                "Socket type should be what we asked for")
-
+            self.assertEqual(
+                socket.TYPE, typ, "Socket type should be what we asked for")
 
     def test_get_bound_socket(self):
         """
@@ -66,11 +66,11 @@ class ZMCatToolTestCase(TestCase):
         self.assertTrue(zmq_sock, "Socket must be able to bind to a port")
 
         try:
-            self.assertTrue(port_open(port),
+            self.assertTrue(
+                port_open(port),
                 "Port should be open and accepting conections")
         finally:
             zmq_sock.close()
-
 
     def test_get_connected_socket(self):
         """
