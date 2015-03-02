@@ -107,8 +107,7 @@ class ZMCatToolTestCase(TestCase):
         sub_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
         msg = u"Who is your daddy and what does he do?"
 
-        config = {"side_effect": [msg]}
-        with mock.patch("__builtin__.raw_input", **config):
+        with mock.patch("__builtin__.raw_input", side_effect=[msg]):
             try:
                 zmcat.pub(uri)
             except StopIteration:
