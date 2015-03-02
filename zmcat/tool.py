@@ -1,3 +1,4 @@
+from __future__ import print_function
 import zmq
 import argparse
 from time import sleep
@@ -8,8 +9,10 @@ COURTESY_DELAY = 0.1
 
 class ZMCat:
 
-    def __init__(self, key="ZMCAT"):
+    def __init__(self, key="ZMCAT", input=raw_input, output=print):
         self.key = key
+        self.input = input
+        self.output = output
 
     def _get_socket(self, typ):
         """
@@ -39,37 +42,36 @@ class ZMCat:
 
     def pub(self, uri):
         """
-        Publish stdin on a ZeroMQ socket bound to uri.
+        Publish input on a ZeroMQ socket bound to uri.
         """
         socket = self._get_bound_socket(zmq.PUB, uri)
         while True:
-            socket.send_unicode(unicode("%s%s" % (self.key, raw_input())))
+            socket.send_unicode(unicode("%s%s" % (self.key, self.input())))
 
     def sub(self, uri):
         """
-        Subscribe to ZeroMQ PUB socket at uri and print its msgs to stdout.
+        Subscribe to ZeroMQ PUB socket at uri and print its msgs to output.
         """
-        global key
         socket = self._get_connected_socket(zmq.SUB, uri)
         socket.setsockopt_string(zmq.SUBSCRIBE, unicode(self.key))
         while True:
-            print socket.recv()
+            self.output(socket.recv())
 
     def push(self, uri):
         """
-        Push stdin to a ZeroMQ PULL socket at uri.
+        Push input to a ZeroMQ PULL socket at uri.
         """
         socket = self._get_connected_socket(zmq.PUSH, uri)
         while True:
-            socket.send_unicode(unicode(raw_input()))
+            socket.send_unicode(unicode(self.input()))
 
     def pull(self, uri):
         """
-        Create a ZeroMQ PULL socket at uri and print its messages to stdout.
+        Create a ZeroMQ PULL socket at uri and print its messages to output.
         """
         socket = self._get_bound_socket(zmq.PULL, uri)
         while True:
-            print socket.recv()
+            self.output(socket.recv())
 
 
 def main():

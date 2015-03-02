@@ -1,4 +1,5 @@
 import logging
+import os
 import socket
 import zmq
 import mock
@@ -8,6 +9,10 @@ from zmcat import ZMCat
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
+
+
+class GetOutOfLoopException(Exception):
+    pass
 
 
 def port_open(port):
@@ -108,6 +113,7 @@ class ZMCatToolTestCase(TestCase):
         msg = u"Who is your daddy and what does he do?"
 
         with mock.patch("__builtin__.raw_input", side_effect=[msg]):
+            zmcat.input = raw_input
             try:
                 zmcat.pub(uri)
             except StopIteration:
@@ -115,3 +121,33 @@ class ZMCatToolTestCase(TestCase):
 
         sleep(0.1)
         self.assertEqual(sub_sock.recv(zmq.NOBLOCK), u"%s%s" % (prefix, msg))
+
+    def test_sub(self):
+        """
+        sub() should set up a SUB socket and send its messages to output.
+        """
+        output_file = "/tmp/test-sub.output"
+
+        def save_and_raise(msg):
+            print msg
+            with open(output_file, "w") as f:
+                f.write(msg)
+            raise GetOutOfLoopException()
+
+        zmcat = ZMCat(output=save_and_raise)
+        uri = "ipc:///tmp/test-sub"
+        msg = u"Stop whining!"
+
+        try:
+            with mock.patch("zmq.sugar.socket.Socket.recv", return_value=msg):
+                try:
+                    zmcat.sub(uri)
+                except GetOutOfLoopException:
+                    pass
+            with open(output_file) as f:
+                self.assertEqual(f.read(), msg)
+        finally:
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass  # Oh well
