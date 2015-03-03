@@ -5,14 +5,22 @@ import zmq
 import mock
 from time import sleep
 from unittest import TestCase
-from zmcat import ZMCat
+from zmcat import ZMCat, tool
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
+TYPES = ("pub", "sub", "push", "pull")
+
 
 class GetOutOfLoopException(Exception):
     pass
+
+
+class FakeArgs:
+    type = None
+    key = "ZMCAT"
+    uri = "ipc:///dev/null"
 
 
 def port_open(port):
@@ -103,7 +111,7 @@ class ZMCatToolTestCase(TestCase):
 
     def test_pub(self):
         """
-        pub() should set up a PUB socket and send stdin through it.
+        pub() should set up a PUB socket and send its input through it.
         """
         prefix = u"ARNIE"
         zmcat = ZMCat(key=prefix)
@@ -134,7 +142,6 @@ class ZMCatToolTestCase(TestCase):
             Save the msg to a file and raise an exception to get out of the
             while True loop in sub().
             """
-            print msg
             with open(output_file, "w") as f:
                 f.write(msg)
             raise GetOutOfLoopException()
@@ -157,3 +164,102 @@ class ZMCatToolTestCase(TestCase):
                 os.unlink(output_file)
             except OSError:
                 pass  # Oh well
+
+    def test_push(self):
+        """
+        push() should set up a PUSH socket and send its input through it.
+        """
+        zmcat = ZMCat()
+        uri = "ipc:///tmp/test-push"
+        pull_sock = zmcat._get_bound_socket(zmq.PULL, uri)
+        msg = u"I'm a cop, you idiot!"
+
+        with mock.patch("__builtin__.raw_input", side_effect=[msg]):
+            zmcat.input = raw_input
+            try:
+                zmcat.push(uri)
+            except StopIteration:
+                pass
+
+        sleep(0.1)
+        self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg)
+
+    def test_pull(self):
+        """
+        pull() should set up a PULL socket and print its messages to output.
+        """
+        output_file = "/tmp/test-sub.output"
+
+        def save_and_raise(msg):
+            """
+            Save the msg to a file and raise an exception to get out of the
+            while True loop in pull().
+            """
+            with open(output_file, "w") as f:
+                f.write(msg)
+            raise GetOutOfLoopException()
+
+        zmcat = ZMCat(output=save_and_raise)
+        uri = "ipc:///tmp/test-pull"
+        msg = u"You son of a bitch. How are you?"
+
+        try:
+            with mock.patch("zmq.sugar.socket.Socket.recv", return_value=msg):
+                try:
+                    zmcat.pull(uri)
+                except GetOutOfLoopException:
+                    pass
+            with open(output_file) as f:
+                self.assertEqual(f.read(), msg)
+        finally:
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass  # Oh well
+
+    def test_main_calls_correct_function(self):
+        """
+        main() should call the correct function when given a type
+        """
+        fake_args = FakeArgs()
+        fake_function = mock.Mock()
+
+        for t in TYPES:
+            fake_args.type = t
+            with mock.patch(
+                    "argparse.ArgumentParser.parse_args",
+                    return_value=fake_args):
+                with mock.patch("zmcat.tool.ZMCat.%s" % t, fake_function):
+                    tool.main()
+            self.assertTrue(fake_function.called)
+
+    def test_main_handles_eof_error(self):
+        """
+        main() should handle EOFError exception from the function it calls
+        """
+        fake_args = FakeArgs()
+        fake_args.type = "pub"
+
+        with mock.patch(
+                "argparse.ArgumentParser.parse_args", return_value=fake_args):
+            with mock.patch("zmcat.tool.ZMCat.pub", side_effect=EOFError):
+                try:
+                    tool.main()
+                except EOFError:
+                    self.fail("Should catch EOFError and return")
+
+    def test_main_handles_keyboard_interrupt(self):
+        """
+        main() should handle EOFError exception from the function it calls
+        """
+        fake_args = FakeArgs()
+        fake_args.type = "pub"
+
+        with mock.patch(
+                "argparse.ArgumentParser.parse_args", return_value=fake_args):
+            with mock.patch(
+                    "zmcat.tool.ZMCat.pub", side_effect=KeyboardInterrupt):
+                try:
+                    tool.main()
+                except KeyboardInterrupt:
+                    self.fail("Should catch KeyboardInterrupt and return")
