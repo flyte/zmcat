@@ -21,6 +21,7 @@ class FakeArgs:
     type = None
     key = "ZMCAT"
     uri = "ipc:///dev/null"
+    bind = False
 
 
 def port_open(port):
@@ -165,7 +166,7 @@ class ZMCatToolTestCase(TestCase):
             except OSError:
                 pass  # Oh well
 
-    def test_push(self):
+    def test_push_connected(self):
         """
         push() should set up a PUSH socket and send its input through it.
         """
@@ -177,14 +178,33 @@ class ZMCatToolTestCase(TestCase):
         with mock.patch("__builtin__.raw_input", side_effect=[msg]):
             zmcat.input = raw_input
             try:
-                zmcat.push(uri)
+                zmcat.push(uri, bind=False)
             except StopIteration:
                 pass
 
         sleep(0.1)
         self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg)
 
-    def test_pull(self):
+    def test_push_bound(self):
+        """
+        push() should set up a PUSH socket and send its input through it.
+        """
+        zmcat = ZMCat()
+        uri = "ipc:///tmp/test-push"
+        pull_sock = zmcat._get_connected_socket(zmq.PULL, uri)
+        msg = u"I'm a cop, you idiot!"
+
+        with mock.patch("__builtin__.raw_input", side_effect=[msg]):
+            zmcat.input = raw_input
+            try:
+                zmcat.push(uri, bind=True)
+            except StopIteration:
+                pass
+
+        sleep(0.1)
+        self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg)
+
+    def test_pull_connected(self):
         """
         pull() should set up a PULL socket and print its messages to output.
         """
@@ -206,7 +226,40 @@ class ZMCatToolTestCase(TestCase):
         try:
             with mock.patch("zmq.sugar.socket.Socket.recv", return_value=msg):
                 try:
-                    zmcat.pull(uri)
+                    zmcat.pull(uri, bind=False)
+                except GetOutOfLoopException:
+                    pass
+            with open(output_file) as f:
+                self.assertEqual(f.read(), msg)
+        finally:
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass  # Oh well
+
+    def test_pull_bound(self):
+        """
+        pull() should set up a PULL socket and print its messages to output.
+        """
+        output_file = "/tmp/test-sub.output"
+
+        def save_and_raise(msg):
+            """
+            Save the msg to a file and raise an exception to get out of the
+            while True loop in pull().
+            """
+            with open(output_file, "w") as f:
+                f.write(msg)
+            raise GetOutOfLoopException()
+
+        zmcat = ZMCat(output=save_and_raise)
+        uri = "ipc:///tmp/test-pull"
+        msg = u"You son of a bitch. How are you?"
+
+        try:
+            with mock.patch("zmq.sugar.socket.Socket.recv", return_value=msg):
+                try:
+                    zmcat.pull(uri, bind=True)
                 except GetOutOfLoopException:
                     pass
             with open(output_file) as f:

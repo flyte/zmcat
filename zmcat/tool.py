@@ -57,19 +57,25 @@ class ZMCat:
         while True:
             self.output(socket.recv())
 
-    def push(self, uri):
+    def push(self, uri, bind):
         """
         Push input to a ZeroMQ PULL socket at uri.
         """
-        socket = self._get_connected_socket(zmq.PUSH, uri)
+        if bind:
+            socket = self._get_bound_socket(zmq.PUSH, uri)
+        else:
+            socket = self._get_connected_socket(zmq.PUSH, uri)
         while True:
             socket.send_unicode(unicode(self.input()))
 
-    def pull(self, uri):
+    def pull(self, uri, bind):
         """
         Create a ZeroMQ PULL socket at uri and print its messages to output.
         """
-        socket = self._get_bound_socket(zmq.PULL, uri)
+        if bind:
+            socket = self._get_bound_socket(zmq.PULL, uri)
+        else:
+            socket = self._get_connected_socket(zmq.PULL, uri)
         while True:
             self.output(socket.recv())
 
@@ -88,13 +94,17 @@ def main():
     p.add_argument("type", choices=types.keys())
     p.add_argument("uri")
     p.add_argument("--key", default="ZMCAT")
+    p.add_argument("--bind", default=False, action="store_true")
     args = p.parse_args()
 
     zmcat.key = args.key
+    kwargs = {}
+    if args.type in ("push", "pull"):
+        kwargs["bind"] = args.bind
 
     try:
         # Call the relevant function
-        types[args.type](args.uri)
+        types[args.type](args.uri, **kwargs)
     except (EOFError, KeyboardInterrupt):
         pass
 
