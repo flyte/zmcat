@@ -79,6 +79,27 @@ class ZMCat:
         while True:
             self.output(socket.recv())
 
+    def req(self, uri):
+        """
+        Create a ZeroMQ REQuest on the uri.
+        """
+        socket = self._get_connected_socket(zmq.REQ, uri)
+        socket.connect(uri)
+        socket.send(self.input())
+        self.output(socket.recv())
+
+    def rep(self, uri):
+        """
+        Create a ZeroMQ REPly socket and bind to the uri. Response is echo
+        of REQuest.
+        """
+        socket = self._get_bound_socket(zmq.REP, uri)
+        while True:
+            req = socket.recv()
+            print("Received %s" % req)
+            socket.send(req)
+            print("Response sent.")
+
 
 def main():
     zmcat = ZMCat()
@@ -87,7 +108,9 @@ def main():
         "pub": zmcat.pub,
         "sub": zmcat.sub,
         "push": zmcat.push,
-        "pull": zmcat.pull
+        "pull": zmcat.pull,
+        "req": zmcat.req,
+        "rep": zmcat.rep
     }
 
     p = argparse.ArgumentParser()
