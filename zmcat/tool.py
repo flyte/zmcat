@@ -1,7 +1,10 @@
 from __future__ import print_function
-import zmq
+
 import argparse
 from time import sleep
+
+import zmq
+
 
 # Allow sockets to connect together before sending data
 COURTESY_DELAY = 0.1

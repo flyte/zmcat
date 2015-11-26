@@ -1,11 +1,14 @@
 import logging
 import os
 import socket
-import zmq
 import mock
 from time import sleep
 from unittest import TestCase
+
+import zmq
+
 from zmcat import ZMCat, tool
+
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
