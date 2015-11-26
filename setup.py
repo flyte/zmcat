@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name="zmcat",
-    version="0.0.14",
+    version="0.0.15",
     author="Ellis Percival",
     author_email="zmcat@failcode.co.uk",
     description="A simple command line tool to test ZMQ push/pull/pub/sub soc"
