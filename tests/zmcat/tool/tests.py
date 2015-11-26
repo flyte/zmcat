@@ -64,6 +64,14 @@ def get_random_bound_zmq_socket(typ):
 
 class ZMCatToolTestCase(TestCase):
 
+    def truncated_file(self, path):
+        """
+        Truncates file at `path` and asserts that it is indeed empty.
+        """
+        with open(path, "w"):
+            pass
+        return path
+
     def test_get_socket(self):
         """
         _get_socket() should provide a ZeroMQ socket of the desired type.
@@ -266,6 +274,40 @@ class ZMCatToolTestCase(TestCase):
                     pass
             with open(output_file) as f:
                 self.assertEqual(f.read(), msg)
+        finally:
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass  # Oh well
+
+    def test_req(self):
+        """
+        req() should set up a REQ socket and push its input through it. It
+        should wait for a response and send it to output.
+        """
+        output_file = self.truncated_file("/tmp/test-req.output")
+        req = u"milk_is_for_babies"
+        rep = u"real_men_drink_beer"
+        uri = "ipc:///tmp/test-req"
+
+        def check_input(msg):
+            """
+            Make sure `msg` is what we expect.
+            """
+            self.assertEqual(msg, req)
+
+        zmcat = ZMCat(
+            input=lambda: req,
+            output=lambda msg: open(output_file, "w").write(msg)
+        )
+        try:
+            with mock.patch("zmq.sugar.socket.Socket.recv", return_value=rep):
+                with mock.patch(
+                        "zmq.sugar.socket.Socket.send_unicode",
+                        side_effect=check_input):
+                    zmcat.req(uri)
+            with open(output_file) as f:
+                self.assertEqual(f.read(), rep)
         finally:
             try:
                 os.unlink(output_file)

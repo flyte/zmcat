@@ -81,11 +81,11 @@ class ZMCat:
 
     def req(self, uri):
         """
-        Create a ZeroMQ REQuest on the uri.
+        Create a ZeroMQ REQuest on the uri. Wait for a reply and output it.
         """
         socket = self._get_connected_socket(zmq.REQ, uri)
         socket.connect(uri)
-        socket.send(self.input())
+        socket.send_unicode(self.input())
         self.output(socket.recv())
 
     def rep(self, uri):
