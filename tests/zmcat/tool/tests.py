@@ -46,7 +46,9 @@ def get_random_bound_zmq_socket(typ):
     zmcat = ZMCat()
     zmq_sock = None
     port = 49152
-    while not zmq_sock and port <= 65536:
+    while not zmq_sock:
+        if port >= 65536:
+            raise ValueError("No more ports left to try!")
         try:
             zmq_sock = zmcat._get_bound_socket(
                 typ, "tcp://127.0.0.1:%d" % port)
