@@ -286,8 +286,8 @@ class ZMCatToolTestCase(TestCase):
         should wait for a response and send it to output.
         """
         output_file = self.truncated_file("/tmp/test-req.output")
-        req = u"milk_is_for_babies"
-        rep = u"real_men_drink_beer"
+        req = u"Milk is for babies"
+        rep = u"Real men drink beer!"
         uri = "ipc:///tmp/test-req"
 
         def check_input(msg):
@@ -308,6 +308,42 @@ class ZMCatToolTestCase(TestCase):
                     zmcat.req(uri)
             with open(output_file) as f:
                 self.assertEqual(f.read(), rep)
+        finally:
+            try:
+                os.unlink(output_file)
+            except OSError:
+                pass  # Oh well
+
+    def test_rep(self):
+        """
+        rep() should echo and output whatever is REQ'd to it.
+        """
+        output_file = self.truncated_file("/tmp/test-rep.output")
+
+        def save_and_raise(msg):
+            """
+            Save the msg to a file and raise an exception to get out of the
+            while True loop in rep().
+            """
+            with open(output_file, "w") as f:
+                f.write(msg)
+            raise GetOutOfLoopException()
+
+        zmcat = ZMCat(output=save_and_raise)
+        uri = "ipc:///tmp/test-rep"
+        msg = "Echo!"
+
+        try:
+            with mock.patch("zmq.sugar.socket.Socket.recv", return_value=msg):
+                with mock.patch("zmq.sugar.socket.Socket.send") as mock_send:
+                    try:
+                        zmcat.rep(uri)
+                    except GetOutOfLoopException:
+                        pass
+                    self.assertTrue(mock_send.called)
+                    self.assertEqual(mock_send.call_args[0][0], msg)
+            with open(output_file) as f:
+                self.assertEqual(f.read(), msg)
         finally:
             try:
                 os.unlink(output_file)

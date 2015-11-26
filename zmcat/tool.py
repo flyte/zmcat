@@ -96,9 +96,8 @@ class ZMCat:
         socket = self._get_bound_socket(zmq.REP, uri)
         while True:
             req = socket.recv()
-            print("Received %s" % req)
             socket.send(req)
-            print("Response sent.")
+            self.output(req)
 
 
 def main():
