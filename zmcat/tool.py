@@ -8,7 +8,7 @@ import zmq
 
 
 if sys.version_info.major == 2:
-    inputf = raw_input
+    inputf = raw_input  # noqa: F821
 else:
     inputf = input
     unicode = str
@@ -20,7 +20,8 @@ COURTESY_DELAY = 0.1
 
 class ZMCat:
 
-    def __init__(self, key="ZMCAT", input=inputf, output=print):
+    def __init__(self, key="ZMCAT", input=None, output=print):
+        input = input or inputf
         self.key = key
         self.input = input
         self.output = output

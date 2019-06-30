@@ -118,7 +118,7 @@ class ZMCatToolTestCase(TestCase):
             sleep(0.1)
             self.assertEqual(
                 connected_sock.recv(zmq.NOBLOCK),
-                msg)
+                msg.encode())
         finally:
             bound_sock.close()
             connected_sock.close()
@@ -128,22 +128,22 @@ class ZMCatToolTestCase(TestCase):
         pub() should set up a PUB socket and send its input through it.
         """
         prefix = u"ARNIE"
-        zmcat = ZMCat(key=prefix)
-        uri = "ipc:///tmp/test-pub"
-        sub_sock = zmcat._get_connected_socket(zmq.SUB, uri)
-        sub_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
         msg = u"Who is your daddy and what does he do?"
+        # Mock inputf to return without standard input
+        with mock.patch("zmcat.tool.inputf", side_effect=[msg]):
+            zmcat = ZMCat(key=prefix)
+            uri = "ipc:///tmp/test-pub"
+            sub_sock = zmcat._get_connected_socket(zmq.SUB, uri)
+            sub_sock.setsockopt_string(zmq.SUBSCRIBE, prefix)
 
-        # Mock raw_input to return without standard input
-        with mock.patch("__builtin__.raw_input", side_effect=[msg]):
-            zmcat.input = raw_input
             try:
                 zmcat.pub(uri)
             except StopIteration:
                 pass
 
         sleep(0.1)
-        self.assertEqual(sub_sock.recv(zmq.NOBLOCK), u"%s%s" % (prefix, msg))
+        exp_msg = (u"%s%s" % (prefix, msg)).encode()
+        self.assertEqual(sub_sock.recv(zmq.NOBLOCK), exp_msg)
 
     def test_sub(self):
         """
@@ -183,39 +183,37 @@ class ZMCatToolTestCase(TestCase):
         """
         push() should set up a PUSH socket and send its input through it.
         """
-        zmcat = ZMCat()
-        uri = "ipc:///tmp/test-push"
-        pull_sock = zmcat._get_bound_socket(zmq.PULL, uri)
         msg = u"I'm a cop, you idiot!"
+        with mock.patch("zmcat.tool.inputf", side_effect=[msg]):
+            zmcat = ZMCat()
+            uri = "ipc:///tmp/test-push"
+            pull_sock = zmcat._get_bound_socket(zmq.PULL, uri)
 
-        with mock.patch("__builtin__.raw_input", side_effect=[msg]):
-            zmcat.input = raw_input
             try:
                 zmcat.push(uri, bind=False)
             except StopIteration:
                 pass
 
         sleep(0.1)
-        self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg)
+        self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg.encode())
 
     def test_push_bound(self):
         """
         push() should set up a PUSH socket and send its input through it.
         """
-        zmcat = ZMCat()
-        uri = "ipc:///tmp/test-push"
-        pull_sock = zmcat._get_connected_socket(zmq.PULL, uri)
         msg = u"I'm a cop, you idiot!"
+        with mock.patch("zmcat.tool.inputf", side_effect=[msg]):
+            zmcat = ZMCat()
+            uri = "ipc:///tmp/test-push"
+            pull_sock = zmcat._get_connected_socket(zmq.PULL, uri)
 
-        with mock.patch("__builtin__.raw_input", side_effect=[msg]):
-            zmcat.input = raw_input
             try:
                 zmcat.push(uri, bind=True)
             except StopIteration:
                 pass
 
         sleep(0.1)
-        self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg)
+        self.assertEqual(pull_sock.recv(zmq.NOBLOCK), msg.encode())
 
     def test_pull_connected(self):
         """
