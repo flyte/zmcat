@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+nose = "*"
+mock = "*"
+coverage = "*"
+
+[packages]
+pyzmq = "*"
+argparse = "*"
+
+[requires]
+python_version = "3.6"
